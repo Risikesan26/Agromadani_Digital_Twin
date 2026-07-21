@@ -692,7 +692,7 @@
         let mouse = new THREE.Vector2();
         let clock = new THREE.Clock();
         let roverProgress = 0;
-        let roverSpeed = 0.00015;
+        let roverSpeed = 0.00035;
         let tooltip = document.getElementById('tooltip');
         let zones = [];
         let selectedPlant = null;
@@ -1263,6 +1263,7 @@
             // Define route points through all zones
             routePoints = [
                 new THREE.Vector3(0, 0.5, 30),
+                new THREE.Vector3(-35, 0.5, 30),  // Move along front aisle to Zone 0 entry corridor
                 // Zone 0: Germination (X = -32, Z = -16, 2 rows)
                 new THREE.Vector3(-35, 0.5, 0),
                 new THREE.Vector3(-35, 0.5, -26), // outer row
@@ -1288,6 +1289,7 @@
                 new THREE.Vector3(29, 0.5, -26),  // inner row
                 new THREE.Vector3(35, 0.5, -26),  // cross behind
                 new THREE.Vector3(35, 0.5, 0),    // outer row
+                new THREE.Vector3(35, 0.5, 30),   // Move to front aisle for safe return
                 // Return to home
                 new THREE.Vector3(0, 0.5, 30)
             ];
