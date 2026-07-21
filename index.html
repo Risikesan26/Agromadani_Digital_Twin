@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agromadani Simulators Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 50%, #151e33 0%, #080c14 100%);
+            color: #f0f4ff;
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Abstract glowing background shapes */
+        .glow-orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(78, 205, 196, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            top: 10%;
+            left: 10%;
+            z-index: 1;
+            filter: blur(50px);
+        }
+
+        .glow-orb-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+            bottom: 10%;
+            right: 10%;
+            z-index: 1;
+            filter: blur(60px);
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1000px;
+            width: 100%;
+            text-align: center;
+        }
+
+        header {
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #4ecdc4 0%, #ff6b35 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            font-size: 1.1rem;
+            color: #8899bb;
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .card {
+            background: rgba(25, 32, 54, 0.5);
+            border: 1px solid rgba(100, 200, 255, 0.15);
+            border-radius: 20px;
+            padding: 35px 25px;
+            backdrop-filter: blur(15px);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(100, 200, 255, 0.05) 0%, rgba(255, 107, 53, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(78, 205, 196, 0.6);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(78, 205, 196, 0.15);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-chili {
+            border-color: rgba(255, 107, 53, 0.2);
+        }
+        .card-chili:hover {
+            border-color: rgba(255, 107, 53, 0.6);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 107, 53, 0.15);
+        }
+
+        .icon-box {
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.2rem;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .icon-warehouse {
+            background: rgba(255, 107, 53, 0.15);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            color: #ff6b35;
+        }
+
+        .icon-parking {
+            background: rgba(78, 205, 196, 0.15);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            color: #4ecdc4;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #ffffff;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card p {
+            font-size: 0.95rem;
+            color: #a4b3d6;
+            line-height: 1.5;
+            margin-bottom: 28px;
+            position: relative;
+            z-index: 2;
+            flex-grow: 1;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #1d2b45 0%, #0d1527 100%);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            color: #e0e8ff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card:hover .btn {
+            background: linear-gradient(135deg, #4ecdc4 0%, #3bb1a9 100%);
+            border-color: #4ecdc4;
+            color: #080c14;
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .card-chili:hover .btn {
+            background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+            border-color: #ff6b35;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        footer {
+            font-size: 0.8rem;
+            color: #536485;
+            margin-top: 40px;
+            animation: fadeIn 1s ease-out 0.4s both;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-orb"></div>
+    <div class="glow-orb-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>Agromadani Simulators</h1>
+            <p class="subtitle">Welcome to the interactive Digital Twin environments portal. Access warehouse chili inspection telemetry or test parking systems below.</p>
+        </header>
+
+        <div class="cards-grid">
+            <!-- Card 1: Chili Warehouse -->
+            <a href="agromadani_sim.html" class="card card-chili">
+                <div class="icon-box icon-warehouse">🌶️</div>
+                <h2>Chili Warehouse Digital Twin</h2>
+                <p>Virtual climate-controlled chili storage simulation. Control ventilation, lighting, and density, and monitor the automated rover telemetry detecting plant diseases using AI.</p>
+                <div class="btn">Launch Simulator &rarr;</div>
+            </a>
+
+            <!-- Card 2: Car Parking -->
+            <a href="car_parking.html" class="card">
+                <div class="icon-box icon-parking">🚗</div>
+                <h2>Car Parking Simulator</h2>
+                <p>Interactive vehicle parking configuration system. Test sensor placements, parking paths, and manage slot space allocation in real-time.</p>
+                <div class="btn">Launch Simulator &rarr;</div>
+            </a>
+        </div>
+
+        <footer>
+            &copy; 2026 Agromadani Digital Twin Project. All rights reserved.
+        </footer>
+    </div>
+</body>
+</html>
