@@ -1773,11 +1773,7 @@
                 `X:${pos.x.toFixed(1)} Z:${pos.z.toFixed(1)}`;
             document.getElementById('current-zone').textContent = zone ? zone.name : 'Transit';
 
-            if (zone) {
-                document.getElementById('temp').textContent = zone.temp;
-                document.getElementById('humidity').textContent = zone.humidity;
-                document.getElementById('light').textContent = zone.light;
-            }
+            updateMainPanelClimate();
 
             // Rover scan check - detect on both sides (left & right) relative to movement
             let nearestLeftPlant = null;
@@ -2061,6 +2057,37 @@
             });
         }
 
+        // --- Climate Telemetry Real-time Sync ---
+        function updateMainPanelClimate() {
+            const zone = isInspecting ? getCurrentZone(rover.position) : null;
+            if (zone) {
+                const tempOffset = envTemperature - 24;
+                const humidityOffset = envHumidity - 65;
+                const adjustedTemp = parseInt(zone.temp) + tempOffset;
+                const adjustedHumidity = parseInt(zone.humidity) + humidityOffset;
+
+                document.getElementById('temp').textContent = adjustedTemp + '°C';
+                document.getElementById('humidity').textContent = adjustedHumidity + '%';
+                
+                let lightLevel = zone.light;
+                if (envLighting === 'Off') lightLevel = 'Off';
+                else if (envLighting === 'Low') lightLevel = 'Low';
+                else if (envLighting === 'High') lightLevel = 'High';
+                document.getElementById('light').textContent = lightLevel;
+            } else {
+                document.getElementById('temp').textContent = envTemperature + '°C';
+                document.getElementById('humidity').textContent = envHumidity + '%';
+                document.getElementById('light').textContent = envLighting;
+            }
+        }
+
+        function onClimateStateChange() {
+            updateMainPanelClimate();
+            if (selectedPlant) {
+                updatePlantPanel(selectedPlant);
+            }
+        }
+
         // --- Environmental Control Callback Handlers ---
         function updateEnvTemp(val) {
             envTemperature = parseInt(val);
@@ -2073,6 +2100,7 @@
             } else {
                 tempEl.style.color = '#4ecdc4'; // green (optimal)
             }
+            onClimateStateChange();
         }
 
         function updateEnvHumidity(val) {
@@ -2085,6 +2113,7 @@
             } else {
                 humEl.style.color = '#4ecdc4';
             }
+            onClimateStateChange();
         }
 
         function updateEnvEthylene(val) {
@@ -2099,6 +2128,7 @@
             } else {
                 ethEl.style.color = '#ff6b35';
             }
+            onClimateStateChange();
         }
 
         function setVentilation(val, btn) {
@@ -2108,6 +2138,7 @@
             const buttons = document.querySelectorAll('#group-ventilation button');
             buttons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            onClimateStateChange();
         }
 
         function setLighting(val, btn) {
@@ -2118,6 +2149,7 @@
             btn.classList.add('active');
             
             updateLightingLevel();
+            onClimateStateChange();
         }
 
         function setDensity(val, btn) {
@@ -2130,6 +2162,7 @@
             
             // Re-generate plants
             buildPlantRows();
+            onClimateStateChange();
         }
 
         function updateLightingLevel() {
