@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Chili Warehouse Environment</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: relative; }
+        #info-panel, #rover-panel, #legend, #env-panel, #plant-panel {
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s ease;
+        }
+        .left-panel.hidden-panel {
+            transform: translateX(-120%) !important;
+            opacity: 0 !important;
+            pointer-events: none;
+        }
+        .right-panel.hidden-panel {
+            transform: translateX(120%) !important;
+            opacity: 0 !important;
+            pointer-events: none;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 12px;
+            padding: 20px;
+            color: #f0f4ff;
+            min-width: 280px;
+            max-width: 320px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 10;
+        }
+        #info-panel h2 {
+            color: #ff6b35;
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 107, 53, 0.3);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #info-panel .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 0.9rem;
+        }
+        #info-panel .stat-label { color: #a4b3d6; }
+        #info-panel .stat-value { color: #4ecdc4; font-weight: 600; }
+        #info-panel .zone-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 12px;
+            padding: 12px 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 10;
+        }
+        #controls button {
+            background: linear-gradient(135deg, #1a3a5c, #0d2137);
+            border: 1px solid rgba(100, 200, 255, 0.4);
+            color: #e0e8ff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        #controls button:hover {
+            background: linear-gradient(135deg, #2a5a8c, #1d4167);
+            border-color: #4ecdc4;
+            transform: translateY(-2px);
+        }
+        #controls button.active {
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+            border-color: #ff6b35;
+        }
+        #tooltip {
+            position: absolute;
+            background: rgba(10, 15, 30, 0.95);
+            border: 1px solid rgba(255, 107, 53, 0.5);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #e0e8ff;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        }
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 12px;
+            padding: 16px;
+            color: #f0f4ff;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 10;
+            min-width: 180px;
+        }
+        #legend h3 {
+            color: #4ecdc4;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #legend .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+            font-size: 0.8rem;
+        }
+        #legend .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+        #plant-panel {
+            position: absolute;
+            top: 20px;
+            bottom: 20px;
+            right: 20px;
+            width: 360px;
+            background: rgba(25, 32, 54, 0.88);
+            border: 1px solid rgba(255, 107, 53, 0.55);
+            border-radius: 16px;
+            padding: 20px;
+            color: #f0f4ff;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 12;
+            display: flex;
+            flex-direction: column;
+        }
+        #plant-panel h2 {
+            color: #ff6b35;
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 107, 53, 0.3);
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #plant-panel .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            font-size: 0.85rem;
+        }
+        #plant-panel .stat-label { color: #a4b3d6; }
+        #plant-panel .stat-value { color: #4ecdc4; font-weight: 600; }
+        #plant-panel .action-btn {
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+            border: 1px solid rgba(255, 107, 53, 0.5);
+            color: #ffffff;
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        #plant-panel .action-btn:hover {
+            background: linear-gradient(135deg, #ff8555, #f46b3b);
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.4);
+            transform: translateY(-2px);
+        }
+        .ai-diagnostic-header {
+            font-size: 0.95rem;
+            color: #4ecdc4;
+            margin-bottom: 8px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ai-diagnostic-details {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(100, 200, 255, 0.05);
+            margin-bottom: 8px;
+        }
+        .ai-diagnostic-stats {
+            flex: 1;
+            font-size: 0.8rem;
+            color: #e0e8ff;
+        }
+        .ai-result-row {
+            margin: 6px 0;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        #rover-panel {
+            position: absolute;
+            top: 320px;
+            left: 20px;
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 12px;
+            padding: 16px;
+            color: #f0f4ff;
+            min-width: 280px;
+            max-width: 320px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        #rover-panel h2 {
+            color: #4ecdc4;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(78, 205, 196, 0.3);
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #rover-camera-box {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            margin-bottom: 12px;
+        }
+        #rover-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .viewfinder {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            border: 8px solid transparent;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #00ff88;
+            text-shadow: 0 0 2px #000;
+        }
+        .viewfinder-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .viewfinder-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .rec-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #ff3333;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        #camera-flash {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s ease-out;
+            z-index: 5;
+        }
+        #rover-panel .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            font-size: 0.85rem;
+        }
+        #rover-panel .stat-label { color: #a4b3d6; }
+        #rover-panel .stat-value { color: #e0e8ff; font-weight: 600; }
+        #env-panel {
+            position: absolute;
+            top: 220px;
+            right: 20px;
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 12px;
+            padding: 16px;
+            color: #f0f4ff;
+            min-width: 280px;
+            max-width: 320px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            z-index: 10;
+        }
+        #env-panel h2 {
+            color: #4ecdc4;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(78, 205, 196, 0.3);
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .slider-row {
+            margin: 10px 0;
+        }
+        .slider-row label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #8899bb;
+            margin-bottom: 4px;
+        }
+        .slider-row input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: #1a2a4a;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(78, 205, 196, 0.8);
+            transition: transform 0.1s;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        .btn-group {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            background: rgba(10, 15, 30, 0.5);
+            padding: 2px;
+            border-radius: 6px;
+            border: 1px solid rgba(100, 200, 255, 0.1);
+        }
+        .btn-group button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #8899bb;
+            padding: 5px 2px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .btn-group button.active {
+            background: #4ecdc4;
+            color: #0a0a0a;
+            font-weight: bold;
+            box-shadow: 0 0 8px rgba(78, 205, 196, 0.5);
+        }
+        .btn-group button:hover:not(.active) {
+            color: #e0e8ff;
+            background: rgba(100, 200, 255, 0.1);
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #8899bb;
+            font-size: 1.3rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .close-btn:hover {
+            color: #ff6b35;
+        }
+        .reopen-btn {
+            position: absolute;
+            background: rgba(25, 32, 54, 0.82);
+            border: 1px solid rgba(100, 200, 255, 0.45);
+            border-radius: 8px;
+            color: #f0f4ff;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            backdrop-filter: blur(15px);
+            z-index: 9;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .reopen-btn.show-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .reopen-btn:hover {
+            border-color: #4ecdc4;
+            transform: translateY(-1px);
+        }
+        #btn-reopen-info { top: 20px; left: 20px; }
+        #btn-reopen-legend { top: 20px; right: 20px; }
+        #btn-reopen-env { top: 220px; right: 20px; }
+        #btn-reopen-rover { top: 320px; left: 20px; }
+    </style>
+    <!-- Three.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<base target="_blank">
+</head>
+<body>
+    <div id="canvas-container">
+        <div id="info-panel" class="left-panel">
+            <h2>
+                <span>🌶️ Chili Warehouse</span>
+                <button class="close-btn" onclick="togglePanel('info-panel', false)">&times;</button>
+            </h2>
+            <div class="stat-row">
+                <span class="stat-label">Total Plants:</span>
+                <span class="stat-value" id="total-plants">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Rover Position:</span>
+                <span class="stat-value" id="rover-pos">Idle</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Current Zone:</span>
+                <span class="stat-value" id="current-zone">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Temperature:</span>
+                <span class="stat-value" id="temp">24°C</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Humidity:</span>
+                <span class="stat-value" id="humidity">65%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Light Level:</span>
+                <span class="stat-value" id="light">High</span>
+            </div>
+        </div>
+        <div id="legend" class="right-panel">
+            <h3>
+                <span>Zone Legend</span>
+                <button class="close-btn" onclick="togglePanel('legend', false)">&times;</button>
+            </h3>
+            <div class="legend-item"><div class="legend-color" style="background:#4ecdc4;"></div>Germination Zone</div>
+            <div class="legend-item"><div class="legend-color" style="background:#45b7d1;"></div>Growth Zone</div>
+            <div class="legend-item"><div class="legend-color" style="background:#ff6b35;"></div>Flowering Zone</div>
+            <div class="legend-item"><div class="legend-color" style="background:#e74c3c;"></div>Fruiting Zone</div>
+            <div class="legend-item"><div class="legend-color" style="background:#f39c12;"></div>Harvest Zone</div>
+        </div>
+        <div id="controls">
+            <button id="btn-inspect" onclick="toggleInspection()">🔍 Start Inspection</button>
+            <button id="btn-route" onclick="toggleRoute()">📍 Show Route</button>
+            <button id="btn-wireframe" onclick="toggleWireframe()">🕸️ Wireframe</button>
+            <button id="btn-reset" onclick="resetCamera()">🔄 Reset View</button>
+        </div>
+        <div id="tooltip"></div>
+        <div id="env-panel" class="right-panel">
+            <h2>
+                <span>⚙️ Climate Simulation</span>
+                <button class="close-btn" onclick="togglePanel('env-panel', false)">&times;</button>
+            </h2>
+            
+            <div class="slider-row">
+                <label>
+                    <span>Temperature</span>
+                    <span id="val-temp" style="color: #4ecdc4;">24°C</span>
+                </label>
+                <input type="range" id="slider-temp" min="15" max="35" value="24" oninput="updateEnvTemp(this.value)">
+            </div>
+            
+            <div class="slider-row">
+                <label>
+                    <span>Humidity</span>
+                    <span id="val-humidity" style="color: #4ecdc4;">65%</span>
+                </label>
+                <input type="range" id="slider-humidity" min="30" max="90" value="65" oninput="updateEnvHumidity(this.value)">
+            </div>
+            
+            <div class="slider-row">
+                <label>
+                    <span>Ethylene Concentration</span>
+                    <span id="val-ethylene" style="color: #ff6b35;">0.1 ppm</span>
+                </label>
+                <input type="range" id="slider-ethylene" min="0" max="5" step="0.1" value="0.1" oninput="updateEnvEthylene(this.value)">
+            </div>
+            
+            <div class="slider-row">
+                <label>Ventilation</label>
+                <div class="btn-group" id="group-ventilation">
+                    <button class="active" onclick="setVentilation('Low', this)">Low</button>
+                    <button onclick="setVentilation('Medium', this)">Med</button>
+                    <button onclick="setVentilation('High', this)">High</button>
+                </div>
+            </div>
+
+            <div class="slider-row">
+                <label>Lighting Level</label>
+                <div class="btn-group" id="group-lighting">
+                    <button onclick="setLighting('Off', this)">Off</button>
+                    <button onclick="setLighting('Low', this)">Low</button>
+                    <button class="active" onclick="setLighting('Medium', this)">Med</button>
+                    <button onclick="setLighting('High', this)">High</button>
+                </div>
+            </div>
+
+            <div class="slider-row">
+                <label>Plant Density</label>
+                <div class="btn-group" id="group-density">
+                    <button onclick="setDensity('Sparse', this)">Sparse</button>
+                    <button class="active" onclick="setDensity('Standard', this)">Std</button>
+                    <button onclick="setDensity('Dense', this)">Dense</button>
+                </div>
+            </div>
+        </div>
+        <div id="plant-panel" class="right-panel hidden-panel">
+            <h2>
+                <span>🌱 Plant Details & AI</span>
+                <button class="close-btn" onclick="closePlantPanel()">&times;</button>
+            </h2>
+            <div style="flex: 1; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;">
+                <div class="stat-row">
+                    <span class="stat-label">Plant ID:</span>
+                    <span class="stat-value" id="plant-id">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Location:</span>
+                    <span class="stat-value" id="plant-loc">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Growth Stage:</span>
+                    <span class="stat-value" id="plant-stage">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Health Status:</span>
+                    <span class="stat-value" id="plant-health">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Disease Prob:</span>
+                    <span class="stat-value" id="plant-disease">-</span>
+                </div>
+                <div class="stat-row" style="margin-bottom: 12px;">
+                    <span class="stat-label">Last Inspection:</span>
+                    <span class="stat-value" id="plant-inspection">-</span>
+                </div>
+
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 12px 0;"></div>
+
+                <div class="ai-diagnostic-header">🔬 Disease Prediction AI</div>
+                
+                <div class="ai-diagnostic-details" style="margin-bottom: 12px;">
+                    <div id="ai-leaf-container" style="min-width: 60px; height: 60px; background: rgba(0,0,0,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <!-- Dynamic Leaf SVG -->
+                    </div>
+                    <div class="ai-diagnostic-stats">
+                        <div style="font-weight: 600; color: #8899bb; margin-bottom: 2px;">Env Inputs:</div>
+                        T: <span id="ai-temp" style="color: #4ecdc4;">-</span> | H: <span id="ai-humidity" style="color: #4ecdc4;">-</span><br>
+                        Ethylene: <span id="ai-ethylene" style="color: #ff6b35;">-</span>
+                    </div>
+                </div>
+
+                <div class="ai-result-row">
+                    <span class="stat-label">History Trend:</span>
+                    <span class="stat-value" id="ai-history" style="color: #4ecdc4;">Stable</span>
+                </div>
+                <div class="ai-result-row">
+                    <span class="stat-label">Classification:</span>
+                    <span class="stat-value" id="ai-disease-class" style="color: #ff6b35; font-weight: bold;">-</span>
+                </div>
+                <div class="ai-result-row">
+                    <span class="stat-label">AI Probability:</span>
+                    <span class="stat-value" id="ai-disease-prob" style="color: #ff6b35; font-weight: bold;">-</span>
+                </div>
+                <div class="ai-result-row" style="margin-top: 4px; margin-bottom: 12px;">
+                    <span class="stat-label">Forecast:</span>
+                    <span class="stat-value" id="ai-disease-time" style="color: #ff8555; font-weight: bold;">-</span>
+                </div>
+            </div>
+            <button class="action-btn" id="btn-treat" onclick="treatSelectedPlant()">💊 Apply Treatment</button>
+        </div>
+        <div id="rover-panel" class="left-panel">
+            <h2>
+                <span>🤖 Rover Telemetry</span>
+                <button class="close-btn" onclick="togglePanel('rover-panel', false)">&times;</button>
+            </h2>
+            <div id="rover-camera-box">
+                <canvas id="rover-canvas"></canvas>
+                <div id="camera-flash"></div>
+                <div class="viewfinder">
+                    <div class="viewfinder-top">
+                        <span class="rec-indicator">● REC</span>
+                        <span>CAM-01</span>
+                    </div>
+                    <div style="align-self: center; font-size: 1.2rem; opacity: 0.5;">[ + ]</div>
+                    <div class="viewfinder-bottom">
+                        <span id="cam-status">STANDBY</span>
+                        <span id="cam-time">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Rover Status:</span>
+                <span class="stat-value" id="rover-status" style="color: #8899bb;">STANDBY</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Distance Sensor:</span>
+                <span class="stat-value" id="rover-dist">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Last Inspected:</span>
+                <span class="stat-value" id="rover-last-scan" style="color: #ff6b35;">None</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Disease Risk:</span>
+                <span class="stat-value" id="rover-risk">-</span>
+            </div>
+        </div>
+        <!-- Floating reopen buttons -->
+        <button id="btn-reopen-info" class="reopen-btn" onclick="togglePanel('info-panel', true)">🌶️ Show Info</button>
+        <button id="btn-reopen-legend" class="reopen-btn" onclick="togglePanel('legend', true)">🗺️ Show Legend</button>
+        <button id="btn-reopen-env" class="reopen-btn" onclick="togglePanel('env-panel', true)">⚙️ Show Climate</button>
+        <button id="btn-reopen-rover" class="reopen-btn" onclick="togglePanel('rover-panel', true)">🤖 Show Rover</button>
+    </div>
+
+    <script>
+        // ============================================
+        // VIRTUAL CHILI WAREHOUSE ENVIRONMENT
+        // ============================================
+
+        // --- Global Variables ---
+        let scene, camera, renderer, controls;
+        let rover, roverPath = [];
+        let plants = [];
+        let isInspecting = false;
+        let showRoute = false;
+        let isWireframe = false;
+        let routeLine, routePoints = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let clock = new THREE.Clock();
+        let roverProgress = 0;
+        let roverSpeed = 0.00015;
+        let tooltip = document.getElementById('tooltip');
+        let zones = [];
+        let selectedPlant = null;
+        let selectionRing;
+        let scannerLaserLeft, scannerLaserRight;
+        let roverCamera, roverRenderer;
+        let lastScannedLeftId = null;
+        let lastScannedRightId = null;
+
+        // Environmental simulation state variables
+        let envTemperature = 24;
+        let envHumidity = 65;
+        let envEthylene = 0.1;
+        let envVentilation = 'Low';
+        let envLighting = 'Medium';
+        let envDensity = 'Standard';
+
+        // Light references and fan blades
+        let ambientLight, dirLight;
+        let fanBlades = [];
+        let lastEnvTick = 0;
+
+        // Manual panel closure states
+        let legendManuallyClosed = false;
+        let envManuallyClosed = false;
+
+        // Zone definitions
+        const ZONE_CONFIGS = [
+            { name: 'Germination', color: 0x4ecdc4, temp: '26°C', humidity: '80%', light: 'Low', x: -32, z: -16 },
+            { name: 'Growth', color: 0x45b7d1, temp: '24°C', humidity: '70%', light: 'Medium', x: -16, z: 16 },
+            { name: 'Flowering', color: 0xff6b35, temp: '25°C', humidity: '60%', light: 'High', x: 0, z: -16 },
+            { name: 'Fruiting', color: 0xe74c3c, temp: '27°C', humidity: '55%', light: 'High', x: 16, z: 16 },
+            { name: 'Harvest', color: 0xf39c12, temp: '22°C', humidity: '50%', light: 'Medium', x: 32, z: -16 }
+        ];
+
+        // --- Initialization ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x181e2e);
+            scene.fog = new THREE.FogExp2(0x181e2e, 0.006);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 45, 60);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.1;
+            controls.minDistance = 10;
+            controls.maxDistance = 120;
+            controls.target.set(0, 0, 0);
+
+            // Lighting
+            setupLighting();
+
+            // Build Environment
+            buildFloor();
+            buildWalls();
+            buildZones();
+            buildPlantRows();
+            buildRover();
+            buildInspectionRoute();
+            buildInfrastructure();
+            setupHelpers();
+            buildFans();
+
+            // Rover Camera setup
+            roverCamera = new THREE.PerspectiveCamera(50, 240 / 150, 0.1, 150);
+            
+            // Rover WebGL Renderer setup
+            const roverCanvas = document.getElementById('rover-canvas');
+            roverRenderer = new THREE.WebGLRenderer({ canvas: roverCanvas, antialias: true });
+            roverRenderer.setSize(240, 150);
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('click', onMouseClick);
+
+            // Update stats
+            document.getElementById('total-plants').textContent = plants.length;
+
+            // Animation Loop
+            animate();
+        }
+
+        // --- Helper Setup ---
+        function setupHelpers() {
+            // Selection Ring
+            const ringGeo = new THREE.RingGeometry(0.8, 1.0, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xff6b35,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            selectionRing = new THREE.Mesh(ringGeo, ringMat);
+            selectionRing.rotation.x = Math.PI / 2;
+            selectionRing.position.y = 0.05;
+            selectionRing.visible = false;
+            scene.add(selectionRing);
+
+            // Scanner Laser Left
+            const laserGeoLeft = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+            const laserMatLeft = new THREE.LineBasicMaterial({
+                color: 0xff3333,
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+            scannerLaserLeft = new THREE.Line(laserGeoLeft, laserMatLeft);
+            scannerLaserLeft.visible = false;
+            scene.add(scannerLaserLeft);
+
+            // Scanner Laser Right
+            const laserGeoRight = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+            const laserMatRight = new THREE.LineBasicMaterial({
+                color: 0xff3333,
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+            scannerLaserRight = new THREE.Line(laserGeoRight, laserMatRight);
+            scannerLaserRight.visible = false;
+            scene.add(scannerLaserRight);
+        }
+
+        // --- Lighting Setup ---
+        function setupLighting() {
+            // Ambient
+            ambientLight = new THREE.AmbientLight(0x707090, 0.6);
+            scene.add(ambientLight);
+
+            // Main directional (sun-like)
+            dirLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
+            dirLight.position.set(50, 80, 30);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 200;
+            dirLight.shadow.camera.left = -60;
+            dirLight.shadow.camera.right = 60;
+            dirLight.shadow.camera.top = 60;
+            dirLight.shadow.camera.bottom = -60;
+            scene.add(dirLight);
+
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0xa0b8e0, 0.55);
+            fillLight.position.set(-30, 40, -20);
+            scene.add(fillLight);
+
+            // Point lights for zones
+            ZONE_CONFIGS.forEach(zone => {
+                const pl = new THREE.PointLight(zone.color, 0.4, 30);
+                pl.position.set(zone.x, 12, zone.z);
+                scene.add(pl);
+            });
+        }
+
+        // --- Floor ---
+        function buildFloor() {
+            const floorGeometry = new THREE.PlaneGeometry(100, 70);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2c3545, // lighter, higher-contrast warehouse concrete blue-grey
+                roughness: 0.5,
+                metalness: 0.15
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Grid pattern on floor
+            const gridHelper = new THREE.GridHelper(100, 50, 0x3d4e6d, 0x23314a);
+            gridHelper.position.y = 0.02;
+            scene.add(gridHelper);
+
+            // Aisle markings
+            for (let z = -28; z <= 28; z += 14) {
+                const lineGeo = new THREE.PlaneGeometry(84, 0.3);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0x566d94, transparent: true, opacity: 0.6 });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(0, 0.03, z);
+                scene.add(line);
+            }
+        }
+
+        // --- Walls ---
+        function buildWalls() {
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0x3a4b5c, // lighter metallic wall paneling
+                roughness: 0.6,
+                metalness: 0.35
+            });
+
+            // Back wall
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(100, 20, 1), wallMaterial);
+            backWall.position.set(0, 10, -35);
+            backWall.castShadow = true;
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+
+            // Front wall (partial - entrance)
+            const frontWallL = new THREE.Mesh(new THREE.BoxGeometry(34, 20, 1), wallMaterial);
+            frontWallL.position.set(-33, 10, 35);
+            frontWallL.castShadow = true;
+            scene.add(frontWallL);
+
+            const frontWallR = new THREE.Mesh(new THREE.BoxGeometry(34, 20, 1), wallMaterial);
+            frontWallR.position.set(33, 10, 35);
+            frontWallR.castShadow = true;
+            scene.add(frontWallR);
+
+            // Side walls
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 70), wallMaterial);
+            leftWall.position.set(-50, 10, 0);
+            leftWall.castShadow = true;
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 70), wallMaterial);
+            rightWall.position.set(50, 10, 0);
+            rightWall.castShadow = true;
+            scene.add(rightWall);
+
+            // Ceiling beams
+            for (let x = -40; x <= 40; x += 20) {
+                const beam = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 1, 70),
+                    new THREE.MeshStandardMaterial({ color: 0x485a6d, metalness: 0.5, roughness: 0.4 })
+                );
+                beam.position.set(x, 18, 0);
+                scene.add(beam);
+            }
+        }
+
+        // --- Zones ---
+        function buildZones() {
+            ZONE_CONFIGS.forEach((config, index) => {
+                // Zone platform
+                const platformGeo = new THREE.BoxGeometry(18, 0.5, 25);
+                const platformMat = new THREE.MeshStandardMaterial({
+                    color: config.color,
+                    transparent: true,
+                    opacity: 0.15,
+                    emissive: config.color,
+                    emissiveIntensity: 0.1
+                });
+                const platform = new THREE.Mesh(platformGeo, platformMat);
+                platform.position.set(config.x, 0.25, config.z);
+                platform.receiveShadow = true;
+                scene.add(platform);
+
+                // Zone border
+                const borderGeo = new THREE.EdgesGeometry(platformGeo);
+                const borderMat = new THREE.LineBasicMaterial({ color: config.color, linewidth: 2 });
+                const border = new THREE.LineSegments(borderGeo, borderMat);
+                border.position.copy(platform.position);
+                scene.add(border);
+
+                // Zone label (simplified as a floating plane with text-like appearance)
+                const labelGeo = new THREE.PlaneGeometry(12, 2);
+                const labelMat = new THREE.MeshBasicMaterial({
+                    color: config.color,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                const label = new THREE.Mesh(labelGeo, labelMat);
+                label.position.set(config.x, 14, config.z - 14);
+                label.rotation.x = -Math.PI / 6;
+                scene.add(label);
+
+                // Store zone data
+                zones.push({
+                    mesh: platform,
+                    config: config,
+                    index: index
+                });
+            });
+        }
+
+        // --- Plant Rows ---
+        function buildPlantRows() {
+            // Clear existing plants from the scene first to prevent leaks
+            plants.forEach(plant => {
+                scene.remove(plant);
+                plant.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                        else child.material.dispose();
+                    }
+                });
+            });
+            plants = [];
+            
+            // Adjust row configurations based on density
+            let densityMult = 1.0;
+            if (envDensity === 'Sparse') {
+                densityMult = 0.5;
+            } else if (envDensity === 'Dense') {
+                densityMult = 1.35;
+            }
+
+            const rowConfigs = [
+                { zoneIndex: 0, rows: 2, plantsPerRow: 6 },
+                { zoneIndex: 1, rows: 3, plantsPerRow: 8 },
+                { zoneIndex: 2, rows: 3, plantsPerRow: 8 },
+                { zoneIndex: 3, rows: 3, plantsPerRow: 8 },
+                { zoneIndex: 4, rows: 2, plantsPerRow: 6 }
+            ];
+
+            rowConfigs.forEach(rc => {
+                const zone = ZONE_CONFIGS[rc.zoneIndex];
+                const finalRows = rc.rows + (envDensity === 'Dense' && rc.rows >= 3 ? 1 : 0);
+                const finalPlantsPerRow = Math.max(2, Math.round(rc.plantsPerRow * densityMult));
+                
+                const startX = zone.x - 6;
+                const startZ = zone.z - 8;
+                const spacingX = 12 / (finalRows - 1 || 1);
+                const spacingZ = 16 / (finalPlantsPerRow - 1 || 1);
+
+                for (let r = 0; r < finalRows; r++) {
+                    for (let p = 0; p < finalPlantsPerRow; p++) {
+                        const px = startX + r * spacingX;
+                        const pz = startZ + p * spacingZ;
+                        createPlant(px, pz, zone, rc.zoneIndex, r, p);
+                    }
+                }
+            });
+
+            // Update stats
+            document.getElementById('total-plants').textContent = plants.length;
+            
+            // Close plant details panel
+            closePlantPanel();
+        }
+
+        function getGrowthStageName(zoneIndex) {
+            switch(zoneIndex) {
+                case 0: return 'Germinating (Sprout)';
+                case 1: return 'Vegetative (Growing)';
+                case 2: return 'Budding (Flowering)';
+                case 3: return 'Ripening (Fruiting)';
+                case 4: return 'Mature (Ready to Harvest)';
+                default: return 'Unknown';
+            }
+        }
+
+        function createPlant(x, z, zoneConfig, zoneIndex, row, col) {
+            const plantGroup = new THREE.Group();
+            plantGroup.position.set(x, 0, z);
+
+            // Generate health and disease probability first
+            let health = 82 + Math.floor(Math.random() * 18);
+            let diseaseProb = 1 + Math.floor(Math.random() * 9); // 1-10% for healthy
+
+            // 10% chance of being unhealthy / diseased
+            const isSick = Math.random() < 0.10;
+            if (isSick) {
+                health = 30 + Math.floor(Math.random() * 45); // 30-75%
+                diseaseProb = 50 + Math.floor(Math.random() * 45); // 50-95%
+            }
+
+            // Pot
+            const potGeo = new THREE.CylinderGeometry(0.6, 0.5, 1.2, 12);
+            const potMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 });
+            const pot = new THREE.Mesh(potGeo, potMat);
+            pot.position.y = 0.6;
+            pot.castShadow = true;
+            plantGroup.add(pot);
+
+            // Soil
+            const soilGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.1, 12);
+            const soilMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 1.0 });
+            const soil = new THREE.Mesh(soilGeo, soilMat);
+            soil.position.y = 1.15;
+            plantGroup.add(soil);
+
+            // Stem
+            const stemHeight = 2.5 + Math.random() * 1.5;
+            const stemGeo = new THREE.CylinderGeometry(0.08, 0.12, stemHeight, 8);
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.7 });
+            const stem = new THREE.Mesh(stemGeo, stemMat);
+            stem.position.y = 1.2 + stemHeight / 2;
+            stem.castShadow = true;
+            plantGroup.add(stem);
+
+            // Leaves
+            const leafCount = 4 + Math.floor(Math.random() * 4);
+            const leavesArray = [];
+            for (let i = 0; i < leafCount; i++) {
+                const leafGeo = new THREE.SphereGeometry(0.4, 8, 6);
+                leafGeo.scale(1, 0.3, 1.5);
+                
+                // Leaf color
+                let leafColor = new THREE.Color(0x3a7a33).lerp(new THREE.Color(0x5aaa33), Math.random());
+                if (health < 70) {
+                    // blend with dry brownish-yellow chlorotic color
+                    leafColor.lerp(new THREE.Color(0x8a7b29), 0.7);
+                }
+
+                const leafMat = new THREE.MeshStandardMaterial({
+                    color: leafColor,
+                    roughness: 0.6
+                });
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                const angle = (i / leafCount) * Math.PI * 2 + Math.random() * 0.5;
+                const height = 1.8 + Math.random() * (stemHeight - 1);
+                leaf.position.set(
+                    Math.cos(angle) * 0.5,
+                    height,
+                    Math.sin(angle) * 0.5
+                );
+                leaf.rotation.y = angle;
+                leaf.rotation.z = Math.PI / 4;
+                leaf.castShadow = true;
+                plantGroup.add(leaf);
+                leavesArray.push(leaf);
+            }
+
+            // Chili peppers (only for flowering, fruiting, harvest zones)
+            if (zoneIndex >= 2) {
+                const pepperCount = zoneIndex === 2 ? 2 : (zoneIndex === 3 ? 5 : 8);
+                for (let i = 0; i < pepperCount; i++) {
+                    const pepperGeo = new THREE.ConeGeometry(0.12, 0.5, 8);
+                    let pepperColor;
+                    if (zoneIndex === 2) pepperColor = 0xffffff; // White flowers
+                    else if (zoneIndex === 3) pepperColor = 0x228b22; // Green
+                    else pepperColor = 0xdc143c; // Red
+
+                    const pepperMat = new THREE.MeshStandardMaterial({
+                        color: pepperColor,
+                        roughness: 0.4,
+                        metalness: 0.1
+                    });
+                    const pepper = new THREE.Mesh(pepperGeo, pepperMat);
+                    const angle = Math.random() * Math.PI * 2;
+                    const h = 2 + Math.random() * (stemHeight - 1.5);
+                    pepper.position.set(
+                        Math.cos(angle) * 0.4,
+                        h,
+                        Math.sin(angle) * 0.4
+                    );
+                    pepper.rotation.z = Math.PI + (Math.random() - 0.5) * 0.5;
+                    pepper.rotation.y = angle;
+                    pepper.castShadow = true;
+                    plantGroup.add(pepper);
+                }
+            }
+
+            // Plant data
+            plantGroup.userData = {
+                type: 'plant',
+                id: `CP-Z${zoneIndex + 1}-R${row + 1}-P${(col + 1).toString().padStart(2, '0')}`,
+                location: `X:${x.toFixed(1)} Z:${z.toFixed(1)}`,
+                growthStage: getGrowthStageName(zoneIndex),
+                zone: zoneConfig.name,
+                zoneIndex: zoneIndex,
+                row: row,
+                col: col,
+                health: health,
+                diseaseProb: diseaseProb,
+                lastInspection: new Date(Date.now() - (10 + Math.random() * 50) * 60 * 1000),
+                height: stemHeight.toFixed(1),
+                age: (zoneIndex * 2 + 1) + ' weeks',
+                leaves: leavesArray
+            };
+
+            scene.add(plantGroup);
+            plants.push(plantGroup);
+        }
+
+        // --- Rover ---
+        function buildRover() {
+            rover = new THREE.Group();
+
+            // Body
+            const bodyGeo = new THREE.BoxGeometry(2.5, 1.2, 3.5);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x2c3e50,
+                metalness: 0.6,
+                roughness: 0.3
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.0;
+            body.castShadow = true;
+            rover.add(body);
+
+            // Top sensor dome
+            const domeGeo = new THREE.SphereGeometry(0.6, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+            const domeMat = new THREE.MeshStandardMaterial({
+                color: 0x3498db,
+                metalness: 0.8,
+                roughness: 0.1,
+                transparent: true,
+                opacity: 0.7
+            });
+            const dome = new THREE.Mesh(domeGeo, domeMat);
+            dome.position.y = 1.6;
+            rover.add(dome);
+
+            // Camera arm
+            const armGeo = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.5 });
+            const arm = new THREE.Mesh(armGeo, armMat);
+            arm.position.set(0, 2.0, 1.2);
+            rover.add(arm);
+
+            // Camera lens
+            const lensGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 16);
+            const lensMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
+            const lens = new THREE.Mesh(lensGeo, lensMat);
+            lens.rotation.x = Math.PI / 2;
+            lens.position.set(0, 2.3, 1.4);
+            rover.add(lens);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const wheelPositions = [
+                [-1.4, 0.5, 1.2], [1.4, 0.5, 1.2],
+                [-1.4, 0.5, -1.2], [1.4, 0.5, -1.2]
+            ];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(...pos);
+                wheel.castShadow = true;
+                rover.add(wheel);
+            });
+
+            // Status LED
+            const ledGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const led = new THREE.Mesh(ledGeo, ledMat);
+            led.position.set(0, 1.6, -1.5);
+            rover.add(led);
+            rover.userData.led = led;
+
+            // Headlight
+            const light = new THREE.SpotLight(0xffffff, 0.8, 20, Math.PI / 6, 0.5);
+            light.position.set(0, 1.5, 1.5);
+            light.target.position.set(0, 0, 5);
+                      rover.position.set(0, 0, 30);
+            rover.userData = { type: 'rover' };
+            scene.add(rover);
+        }
+ 
+        // --- Inspection Route ---
+        function buildInspectionRoute() {
+            // Define route points through all zones
+            routePoints = [
+                new THREE.Vector3(0, 0.5, 30),
+                // Zone 0: Germination (X = -32, Z = -16, 2 rows)
+                new THREE.Vector3(-35, 0.5, 0),
+                new THREE.Vector3(-35, 0.5, -26), // outer row
+                new THREE.Vector3(-29, 0.5, -26), // cross behind
+                new THREE.Vector3(-29, 0.5, 0),   // inner row
+                // Zone 1: Growth (X = -16, Z = 16, 3 rows)
+                new THREE.Vector3(-19, 0.5, 0),
+                new THREE.Vector3(-19, 0.5, 26),  // Aisle 1
+                new THREE.Vector3(-13, 0.5, 26),  // cross behind
+                new THREE.Vector3(-13, 0.5, 0),   // Aisle 2
+                // Zone 2: Flowering (X = 0, Z = -16, 3 rows)
+                new THREE.Vector3(-3, 0.5, 0),
+                new THREE.Vector3(-3, 0.5, -26),  // Aisle 1
+                new THREE.Vector3(3, 0.5, -26),   // cross behind
+                new THREE.Vector3(3, 0.5, 0),     // Aisle 2
+                // Zone 3: Fruiting (X = 16, Z = 16, 3 rows)
+                new THREE.Vector3(13, 0.5, 0),
+                new THREE.Vector3(13, 0.5, 26),   // Aisle 1
+                new THREE.Vector3(19, 0.5, 26),   // cross in front
+                new THREE.Vector3(19, 0.5, 0),    // Aisle 2
+                // Zone 4: Harvest (X = 32, Z = -16, 2 rows)
+                new THREE.Vector3(29, 0.5, 0),
+                new THREE.Vector3(29, 0.5, -26),  // inner row
+                new THREE.Vector3(35, 0.5, -26),  // cross behind
+                new THREE.Vector3(35, 0.5, 0),    // outer row
+                // Return to home
+                new THREE.Vector3(0, 0.5, 30)
+            ];
+
+            const curve = new THREE.CatmullRomCurve3(routePoints);
+            const points = curve.getPoints(200);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 0
+            });
+            routeLine = new THREE.Line(geometry, material);
+            scene.add(routeLine);
+        }
+
+        // --- Infrastructure ---
+        function buildInfrastructure() {
+            // Water pipes along ceiling
+            for (let z = -35; z <= 35; z += 10) {
+                const pipeGeo = new THREE.CylinderGeometry(0.15, 0.15, 100, 8);
+                const pipeMat = new THREE.MeshStandardMaterial({ color: 0x5a7a9a, metalness: 0.7, roughness: 0.3 });
+                const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+                pipe.rotation.z = Math.PI / 2;
+                pipe.position.set(0, 16, z);
+                scene.add(pipe);
+            }
+
+            // Vertical supports
+            for (let x = -50; x <= 50; x += 25) {
+                for (let z of [-35, 0, 35]) {
+                    const supportGeo = new THREE.BoxGeometry(0.5, 16, 0.5);
+                    const supportMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, metalness: 0.5 });
+                    const support = new THREE.Mesh(supportGeo, supportMat);
+                    support.position.set(x, 8, z);
+                    scene.add(support);
+                }
+            }
+
+            // Control panel station
+            const panelGeo = new THREE.BoxGeometry(3, 4, 1);
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, metalness: 0.4 });
+            const panel = new THREE.Mesh(panelGeo, panelMat);
+            panel.position.set(-55, 2, 30);
+            panel.castShadow = true;
+            scene.add(panel);
+
+            // Screen on panel
+            const screenGeo = new THREE.PlaneGeometry(2.2, 2.5);
+            const screenMat = new THREE.MeshBasicMaterial({ color: 0x001133 });
+            const screen = new THREE.Mesh(screenGeo, screenMat);
+            screen.position.set(-55, 2.5, 30.51);
+            scene.add(screen);
+
+            // Screen glow
+            const screenLight = new THREE.PointLight(0x0088ff, 0.5, 5);
+            screenLight.position.set(-55, 2.5, 32);
+            scene.add(screenLight);
+        }
+
+        // --- Interaction Functions ---
+        function toggleInspection() {
+            isInspecting = !isInspecting;
+            const btn = document.getElementById('btn-inspect');
+            btn.classList.toggle('active');
+            btn.textContent = isInspecting ? '⏹ Stop Inspection' : '🔍 Start Inspection';
+
+            if (isInspecting) {
+                roverProgress = 0;
+                rover.userData.led.material.color.setHex(0xff0000);
+                lastScannedLeftId = null;
+                lastScannedRightId = null;
+                document.getElementById('rover-status').textContent = 'IN TRANSIT';
+                document.getElementById('rover-status').style.color = '#4ecdc4';
+                document.getElementById('cam-status').textContent = 'FEED LIVE';
+                document.getElementById('cam-status').style.color = '#00ff88';
+            } else {
+                rover.userData.led.material.color.setHex(0x00ff00);
+                if (scannerLaserLeft) scannerLaserLeft.visible = false;
+                if (scannerLaserRight) scannerLaserRight.visible = false;
+                lastScannedLeftId = null;
+                lastScannedRightId = null;
+                // Reset Rover UI
+                document.getElementById('rover-status').textContent = 'STANDBY';
+                document.getElementById('rover-status').style.color = '#8899bb';
+                document.getElementById('rover-dist').textContent = '-';
+                document.getElementById('rover-last-scan').textContent = 'None';
+                document.getElementById('rover-risk').textContent = '-';
+                document.getElementById('rover-risk').style.color = '#e0e8ff';
+                document.getElementById('cam-status').textContent = 'STANDBY';
+                document.getElementById('cam-status').style.color = '#00ff88';
+            }
+        }
+
+        function toggleRoute() {
+            showRoute = !showRoute;
+            const btn = document.getElementById('btn-route');
+            btn.classList.toggle('active');
+            routeLine.material.opacity = showRoute ? 0.6 : 0;
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            const btn = document.getElementById('btn-wireframe');
+            btn.classList.toggle('active');
+            scene.traverse(child => {
+                if (child.isMesh && child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.wireframe = isWireframe);
+                    } else {
+                        child.material.wireframe = isWireframe;
+                    }
+                }
+            });
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 45, 60);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+
+        // --- Mouse Events ---
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(plants, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.type === 'plant') {
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = event.clientX + 15 + 'px';
+                    tooltip.style.top = event.clientY + 15 + 'px';
+                    tooltip.innerHTML = `
+                        <strong>ID: ${obj.userData.id}</strong><br>
+                        Zone: ${obj.userData.zone}<br>
+                        Health: ${obj.userData.health}%<br>
+                        Stage: ${obj.userData.growthStage}
+                    `;
+                    document.body.style.cursor = 'pointer';
+                    return;
+                }
+            }
+            tooltip.style.display = 'none';
+            document.body.style.cursor = 'default';
+        }
+
+        function onMouseClick(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(plants, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData.type) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.type === 'plant') {
+                    // Focus camera on plant
+                    const targetPos = new THREE.Vector3(
+                        obj.position.x,
+                        obj.position.y + 3,
+                        obj.position.z + 8
+                    );
+                    animateCamera(targetPos, obj.position);
+                    selectPlant(obj);
+                }
+            }
+        }
+
+        function selectPlant(plantObj) {
+            selectedPlant = plantObj;
+            if (selectionRing) {
+                selectionRing.position.copy(plantObj.position);
+                selectionRing.position.y = 0.05;
+                selectionRing.visible = true;
+            }
+            updatePlantPanel(plantObj);
+            document.getElementById('plant-panel').classList.remove('hidden-panel');
+            
+            // Auto hide other right-side panels to clear the layout
+            if (!legendManuallyClosed) {
+                document.getElementById('legend').classList.add('hidden-panel');
+            }
+            if (!envManuallyClosed) {
+                document.getElementById('env-panel').classList.add('hidden-panel');
+            }
+        }
+
+        function updatePlantPanel(plantObj) {
+            const data = plantObj.userData;
+            document.getElementById('plant-id').textContent = data.id;
+            document.getElementById('plant-loc').textContent = `${data.zone} (X:${plantObj.position.x.toFixed(1)} Z:${plantObj.position.z.toFixed(1)})`;
+            document.getElementById('plant-stage').textContent = data.growthStage;
+            
+            // Health text with status label
+            let healthLabel = 'Excellent';
+            if (data.health < 50) healthLabel = 'Critical';
+            else if (data.health < 75) healthLabel = 'Fair';
+            else if (data.health < 85) healthLabel = 'Good';
+            
+            const healthValSpan = document.getElementById('plant-health');
+            healthValSpan.textContent = `${data.health}% (${healthLabel})`;
+            if (data.health < 50) healthValSpan.style.color = '#e74c3c';
+            else if (data.health < 75) healthValSpan.style.color = '#f39c12';
+            else healthValSpan.style.color = '#4ecdc4';
+
+            const diseaseValSpan = document.getElementById('plant-disease');
+            diseaseValSpan.textContent = `${data.diseaseProb}%`;
+            if (data.diseaseProb > 50) diseaseValSpan.style.color = '#e74c3c';
+            else if (data.diseaseProb > 20) diseaseValSpan.style.color = '#f39c12';
+            else diseaseValSpan.style.color = '#4ecdc4';
+
+            document.getElementById('plant-inspection').textContent = formatRelativeTime(data.lastInspection);
+
+            // ============================================
+            // DISEASE PREDICTION AI DIAGNOSTICS
+            // ============================================
+            
+            // 1. Draw Dynamic Leaf Image
+            drawAiLeaf(data.health);
+            
+            // 2. Fetch Environmental Inputs
+            document.getElementById('ai-temp').textContent = envTemperature + '°C';
+            document.getElementById('ai-humidity').textContent = envHumidity + '%';
+            document.getElementById('ai-ethylene').textContent = envEthylene.toFixed(1) + ' ppm';
+            
+            // 3. Historical Data Trend
+            let trendText = 'Stable (Optimal Trend)';
+            let trendColor = '#4ecdc4';
+            if (data.health < 60) {
+                trendText = 'Degrading (Stress Detected)';
+                trendColor = '#e74c3c';
+            } else if (data.health < 85) {
+                trendText = 'Minor Fluctuation';
+                trendColor = '#f39c12';
+            }
+            const trendEl = document.getElementById('ai-history');
+            trendEl.textContent = trendText;
+            trendEl.style.color = trendColor;
+            
+            // 4. AI Diagnostic Output - Disease Classification
+            const classEl = document.getElementById('ai-disease-class');
+            const probEl = document.getElementById('ai-disease-prob');
+            const timeEl = document.getElementById('ai-disease-time');
+            
+            if (data.health >= 85) {
+                classEl.textContent = 'None (Healthy)';
+                classEl.style.color = '#4ecdc4';
+                probEl.textContent = data.diseaseProb + '%';
+                probEl.style.color = '#4ecdc4';
+                timeEl.textContent = 'Safe (>30 days)';
+                timeEl.style.color = '#8899bb';
+            } else {
+                // Select classification based on zone and health
+                let diseaseName = 'Leaf Necrosis';
+                if (data.zoneIndex === 0) diseaseName = 'Damping-off Rot';
+                else if (data.zoneIndex === 1) diseaseName = 'Powdery Mildew';
+                else if (data.zoneIndex === 2) diseaseName = 'Chili Leaf Curl Virus';
+                else if (data.zoneIndex === 3) diseaseName = 'Anthracnose Spotting';
+                else if (data.zoneIndex === 4) diseaseName = 'Gray Mold (Botrytis)';
+                
+                classEl.textContent = diseaseName;
+                classEl.style.color = '#ff6b35';
+                
+                probEl.textContent = data.diseaseProb + '%';
+                probEl.style.color = '#e74c3c';
+                
+                // Expected infection progression forecast
+                if (data.health < 50) {
+                    timeEl.textContent = 'Active: Infected (Needs Urgent Treatment)';
+                    timeEl.style.color = '#e74c3c';
+                } else {
+                    const daysLeft = Math.max(1, Math.round((data.health - 50) / 4));
+                    timeEl.textContent = `High Risk: Outbreak expected in ${daysLeft} days`;
+                    timeEl.style.color = '#f39c12';
+                }
+            }
+        }
+
+        // Helper to render leaf state with dynamic brown spots
+        function drawAiLeaf(health) {
+            const container = document.getElementById('ai-leaf-container');
+            if (!container) return;
+            
+            let color = '#4ecdc4'; // vibrant healthy green/teal
+            if (health < 70) {
+                color = '#8a7b29'; // yellowish green
+            } else if (health < 50) {
+                color = '#7a6a22'; // brown-green
+            }
+            
+            let svg = `<svg width="55" height="55" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C8 6 3 10 3 15C3 18.866 6.134 22 10 22C11.5 22 12.5 21 13 20C13.5 21 14.5 22 16 22C19.866 22 23 18.866 23 15C23 10 18 6 12 2Z" fill="${color}"/>
+                <path d="M12 2V22" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+            </svg>`;
+            
+            // Add brown spots on the leaf relative to health drop
+            if (health < 90) {
+                const spotCount = Math.floor((100 - health) / 7);
+                svg = svg.replace('</svg>', '');
+                for (let i = 0; i < spotCount; i++) {
+                    const angle = Math.sin(i * 1.7) * Math.PI * 2;
+                    const dist = (Math.cos(i * 2.3) * 0.5 + 0.5) * 5.5; // distance from center
+                    const sx = (12 + Math.cos(angle) * dist).toFixed(1);
+                    const sy = (14 + Math.sin(angle) * dist).toFixed(1);
+                    const radius = (0.8 + (i % 3) * 0.4).toFixed(1);
+                    
+                    svg += `<circle cx="${sx}" cy="${sy}" r="${radius}" fill="#5c3c1e" opacity="0.85"/>`;
+                }
+                svg += '</svg>';
+            }
+            
+            container.innerHTML = svg;
+        }
+
+        function closePlantPanel() {
+            document.getElementById('plant-panel').classList.add('hidden-panel');
+            selectedPlant = null;
+            if (selectionRing) {
+                selectionRing.visible = false;
+            }
+            
+            // Restore legend and env panel if they were not manually closed
+            if (!legendManuallyClosed) {
+                document.getElementById('legend').classList.remove('hidden-panel');
+            }
+            if (!envManuallyClosed) {
+                document.getElementById('env-panel').classList.remove('hidden-panel');
+            }
+        }
+
+        function togglePanel(panelId, show) {
+            const panel = document.getElementById(panelId);
+            let reopenBtnId = '';
+            if (panelId === 'info-panel') reopenBtnId = 'btn-reopen-info';
+            else if (panelId === 'legend') {
+                reopenBtnId = 'btn-reopen-legend';
+                legendManuallyClosed = !show;
+            }
+            else if (panelId === 'env-panel') {
+                reopenBtnId = 'btn-reopen-env';
+                envManuallyClosed = !show;
+            }
+            else if (panelId === 'rover-panel') reopenBtnId = 'btn-reopen-rover';
+            
+            const reopenBtn = document.getElementById(reopenBtnId);
+            
+            if (show) {
+                panel.classList.remove('hidden-panel');
+                if (reopenBtn) reopenBtn.classList.remove('show-btn');
+            } else {
+                panel.classList.add('hidden-panel');
+                if (reopenBtn) reopenBtn.classList.add('show-btn');
+            }
+        }
+
+        function treatSelectedPlant() {
+            if (!selectedPlant) return;
+            const data = selectedPlant.userData;
+            
+            // Trigger visual treatment effect
+            spawnTreatmentEffect(selectedPlant.position);
+            
+            // Restore health and reduce disease probability
+            data.health = 100;
+            data.diseaseProb = 0;
+            
+            // Restore leaf colors back to healthy green
+            if (data.leaves && data.leaves.length > 0) {
+                data.leaves.forEach(leaf => {
+                    const targetColor = new THREE.Color(0x3a7a33).lerp(new THREE.Color(0x5aaa33), Math.random());
+                    
+                    let progress = 0;
+                    const startColor = leaf.material.color.clone();
+                    function transitionColor() {
+                        progress += 0.05;
+                        if (progress > 1) progress = 1;
+                        leaf.material.color.lerpColors(startColor, targetColor, progress);
+                        if (progress < 1) {
+                            requestAnimationFrame(transitionColor);
+                        }
+                    }
+                    transitionColor();
+                });
+            }
+            
+            // Update panel
+            updatePlantPanel(selectedPlant);
+        }
+
+        function spawnTreatmentEffect(position) {
+            const ringGeo = new THREE.RingGeometry(0.1, 1.2, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x4ecdc4,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.copy(position);
+            ring.position.y = 0.1;
+            scene.add(ring);
+            
+            let scale = 1.0;
+            let opacity = 0.8;
+            
+            function animateRing() {
+                scale += 0.08;
+                ring.position.y += 0.08; // rises up the plant
+                opacity -= 0.025;
+                ring.scale.set(scale, scale, 1);
+                ring.material.opacity = opacity;
+                
+                if (opacity > 0) {
+                    requestAnimationFrame(animateRing);
+                } else {
+                    scene.remove(ring);
+                    ring.geometry.dispose();
+                    ring.material.dispose();
+                }
+            }
+            animateRing();
+        }
+
+        function formatRelativeTime(date) {
+            if (!date) return 'Never';
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 5) return 'Just now';
+            if (seconds < 60) return `${seconds}s ago`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            return date.toLocaleTimeString();
+        }
+
+        function animateCamera(targetPos, lookAt) {
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+            let progress = 0;
+
+            function step() {
+                progress += 0.02;
+                if (progress >= 1) progress = 1;
+                camera.position.lerpVectors(startPos, targetPos, progress);
+                controls.target.lerpVectors(startTarget, lookAt, progress);
+                controls.update();
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            step();
+        }
+
+        // --- Rover Animation ---
+        function updateRover(deltaTime) {
+            if (!isInspecting || routePoints.length < 2) {
+                if (scannerLaserLeft) scannerLaserLeft.visible = false;
+                if (scannerLaserRight) scannerLaserRight.visible = false;
+                return;
+            }
+
+            roverProgress += roverSpeed * deltaTime * 60;
+            if (roverProgress >= 1) {
+                roverProgress = 0;
+            }
+
+            const curve = new THREE.CatmullRomCurve3(routePoints);
+            const pos = curve.getPointAt(roverProgress);
+            const tangent = curve.getTangentAt(roverProgress);
+
+            rover.position.copy(pos);
+            rover.lookAt(pos.clone().add(tangent));
+
+            // Update UI
+            const zone = getCurrentZone(rover.position);
+            document.getElementById('rover-pos').textContent =
+                `X:${pos.x.toFixed(1)} Z:${pos.z.toFixed(1)}`;
+            document.getElementById('current-zone').textContent = zone ? zone.name : 'Transit';
+
+            if (zone) {
+                document.getElementById('temp').textContent = zone.temp;
+                document.getElementById('humidity').textContent = zone.humidity;
+                document.getElementById('light').textContent = zone.light;
+            }
+
+            // Rover scan check - detect on both sides (left & right) relative to movement
+            let nearestLeftPlant = null;
+            let leftMinDist = 6.0;
+            let nearestRightPlant = null;
+            let rightMinDist = 6.0;
+
+            const leftVec = new THREE.Vector3(-tangent.z, 0, tangent.x);
+
+            plants.forEach(plant => {
+                const dist = pos.distanceTo(plant.position);
+                if (dist < 6.0) {
+                    const toPlant = new THREE.Vector3().subVectors(plant.position, pos);
+                    toPlant.y = 0; // ignore vertical difference
+                    const sideDot = toPlant.dot(leftVec);
+
+                    if (sideDot > 0) {
+                        if (dist < leftMinDist) {
+                            leftMinDist = dist;
+                            nearestLeftPlant = plant;
+                        }
+                    } else {
+                        if (dist < rightMinDist) {
+                            rightMinDist = dist;
+                            nearestRightPlant = plant;
+                        }
+                    }
+                }
+            });
+
+            // Update Rover Telemetry Panel
+            let statusText = 'IN TRANSIT';
+            let statusColor = '#4ecdc4';
+            let distText = '';
+            let lastScanText = '';
+            let riskHTML = '';
+            let newlyScanned = false;
+
+            // Handle Left Plant Scan
+            if (nearestLeftPlant) {
+                nearestLeftPlant.userData.lastInspection = new Date();
+                statusText = 'SCANNING';
+                statusColor = '#e74c3c';
+
+                // Project Left Laser Beam
+                const startPt = new THREE.Vector3();
+                rover.localToWorld(startPt.set(-0.5, 2.3, 1.4)); // left offsets
+                const endPt = nearestLeftPlant.position.clone();
+                endPt.y += 1.5;
+                scannerLaserLeft.geometry.setFromPoints([startPt, endPt]);
+                scannerLaserLeft.geometry.attributes.position.needsUpdate = true;
+                scannerLaserLeft.visible = true;
+
+                // Diagnostics flash check
+                if (lastScannedLeftId !== nearestLeftPlant.userData.id) {
+                    lastScannedLeftId = nearestLeftPlant.userData.id;
+                    if (nearestLeftPlant.userData.health < 85) {
+                        newlyScanned = true;
+                    }
+                }
+
+                distText += `L: ${leftMinDist.toFixed(1)}m`;
+                lastScanText += nearestLeftPlant.userData.id;
+
+                const dProb = nearestLeftPlant.userData.diseaseProb;
+                let riskColor = '#4ecdc4', riskLabel = 'LOW';
+                if (dProb > 50) { riskColor = '#e74c3c'; riskLabel = 'HIGH'; }
+                else if (dProb > 20) { riskColor = '#f39c12'; riskLabel = 'MOD'; }
+                riskHTML += `L: <span style="color: ${riskColor}; font-weight: bold;">${riskLabel}</span>`;
+
+                if (selectedPlant === nearestLeftPlant) {
+                    updatePlantPanel(nearestLeftPlant);
+                }
+            } else {
+                scannerLaserLeft.visible = false;
+                lastScannedLeftId = null;
+                distText += 'L: Clear';
+                riskHTML += 'L: -';
+            }
+
+            // Handle Right Plant Scan
+            if (nearestRightPlant) {
+                nearestRightPlant.userData.lastInspection = new Date();
+                statusText = 'SCANNING';
+                statusColor = '#e74c3c';
+
+                // Project Right Laser Beam
+                const startPt = new THREE.Vector3();
+                rover.localToWorld(startPt.set(0.5, 2.3, 1.4)); // right offsets
+                const endPt = nearestRightPlant.position.clone();
+                endPt.y += 1.5;
+                scannerLaserRight.geometry.setFromPoints([startPt, endPt]);
+                scannerLaserRight.geometry.attributes.position.needsUpdate = true;
+                scannerLaserRight.visible = true;
+
+                // Diagnostics flash check
+                if (lastScannedRightId !== nearestRightPlant.userData.id) {
+                    lastScannedRightId = nearestRightPlant.userData.id;
+                    if (nearestRightPlant.userData.health < 85) {
+                        newlyScanned = true;
+                    }
+                }
+
+                distText += ` | R: ${rightMinDist.toFixed(1)}m`;
+                if (lastScanText) lastScanText += ' & ';
+                lastScanText += nearestRightPlant.userData.id;
+
+                const dProb = nearestRightPlant.userData.diseaseProb;
+                let riskColor = '#4ecdc4', riskLabel = 'LOW';
+                if (dProb > 50) { riskColor = '#e74c3c'; riskLabel = 'HIGH'; }
+                else if (dProb > 20) { riskColor = '#f39c12'; riskLabel = 'MOD'; }
+                riskHTML += ` | R: <span style="color: ${riskColor}; font-weight: bold;">${riskLabel}</span>`;
+
+                if (selectedPlant === nearestRightPlant) {
+                    updatePlantPanel(nearestRightPlant);
+                }
+            } else {
+                scannerLaserRight.visible = false;
+                lastScannedRightId = null;
+                distText += ' | R: Clear';
+                riskHTML += ' | R: -';
+            }
+
+            // Play shutter camera capture effect if a new plant is scanned
+            if (newlyScanned) {
+                triggerCameraFlash();
+            }
+
+            // Update UI elements
+            document.getElementById('rover-status').textContent = statusText;
+            document.getElementById('rover-status').style.color = statusColor;
+            document.getElementById('rover-dist').textContent = distText;
+            document.getElementById('rover-last-scan').textContent = lastScanText || 'None';
+            document.getElementById('rover-risk').innerHTML = riskHTML;
+
+            if (statusText === 'SCANNING') {
+                document.getElementById('cam-status').textContent = 'SCANNING';
+                document.getElementById('cam-status').style.color = '#ff3333';
+            } else {
+                document.getElementById('cam-status').textContent = 'FEED LIVE';
+                document.getElementById('cam-status').style.color = '#00ff88';
+            }
+
+            // Animate wheels
+            rover.children.forEach(child => {
+                if (child.geometry && child.geometry.type === 'CylinderGeometry') {
+                    child.rotation.x += 0.1;
+                }
+            });
+        }
+
+        function getCurrentZone(position) {
+            for (let zone of zones) {
+                const z = zone.config;
+                if (Math.abs(position.x - z.x) < 9 && Math.abs(position.z - z.z) < 12.5) {
+                    return z;
+                }
+            }
+            return null;
+        }
+
+        // --- Window Resize ---
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const deltaTime = clock.getDelta();
+
+            controls.update();
+            updateRover(deltaTime);
+
+            // Rotate ventilation fans
+            let fanSpeed = 0;
+            if (envVentilation === 'Low') fanSpeed = 0.05;
+            else if (envVentilation === 'Medium') fanSpeed = 0.15;
+            else if (envVentilation === 'High') fanSpeed = 0.3;
+            
+            fanBlades.forEach(blade => {
+                blade.rotation.z += fanSpeed;
+            });
+
+            // Subtle plant sway
+            const time = clock.getElapsedTime();
+            plants.forEach((plant, i) => {
+                plant.rotation.z = Math.sin(time * 0.5 + i * 0.3) * 0.02;
+                plant.rotation.x = Math.cos(time * 0.3 + i * 0.2) * 0.01;
+            });
+
+            // Environmental simulation slow update tick
+            updateEnvironmentalSim(time);
+
+            // Update inspection time text if selected
+            if (selectedPlant) {
+                document.getElementById('plant-inspection').textContent = formatRelativeTime(selectedPlant.userData.lastInspection);
+            }
+
+            // Render Rover Live Feed Viewport
+            if (roverRenderer && roverCamera) {
+                if (!isInspecting) {
+                    const camPos = new THREE.Vector3();
+                    rover.localToWorld(camPos.set(0, 2.3, 1.4));
+                    roverCamera.position.copy(camPos);
+                    
+                    const lookTarget = new THREE.Vector3();
+                    rover.localToWorld(lookTarget.set(0, 2.3, 10)); // look forward
+                    roverCamera.lookAt(lookTarget);
+                } else {
+                    const curve = new THREE.CatmullRomCurve3(routePoints);
+                    const lookAheadProgress = Math.min(roverProgress + 0.02, 0.999);
+                    const lookTarget = curve.getPointAt(lookAheadProgress);
+                    lookTarget.y = 2.3;
+                    
+                    const camPos = new THREE.Vector3();
+                    rover.localToWorld(camPos.set(0, 2.3, 1.4));
+                    roverCamera.position.copy(camPos);
+                    roverCamera.lookAt(lookTarget);
+                }
+                roverRenderer.render(scene, roverCamera);
+            }
+
+            // Update viewfinder clock
+            const clockEl = document.getElementById('cam-time');
+            if (clockEl) {
+                clockEl.textContent = new Date().toLocaleTimeString();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Camera Shutter Flash Effect
+        function triggerCameraFlash() {
+            const flashDiv = document.getElementById('camera-flash');
+            if (!flashDiv) return;
+            flashDiv.style.opacity = '0.9';
+            setTimeout(() => {
+                flashDiv.style.opacity = '0';
+            }, 120);
+        }
+
+        // --- Exhaust Fan Builder ---
+        function buildFans() {
+            // Remove existing fans if any to avoid duplicates
+            fanBlades = [];
+            
+            const fanPositions = [-30, 30];
+            fanPositions.forEach(x => {
+                const fanGroup = new THREE.Group();
+                fanGroup.position.set(x, 12, -34.3); // slightly in front of back wall
+                
+                // Casing
+                const casingGeo = new THREE.TorusGeometry(3, 0.15, 8, 32);
+                const casingMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, metalness: 0.8 });
+                const casing = new THREE.Mesh(casingGeo, casingMat);
+                fanGroup.add(casing);
+                
+                // Hub
+                const hubGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16);
+                hubGeo.rotateX(Math.PI / 2);
+                const hubMat = new THREE.MeshStandardMaterial({ color: 0x34495e, metalness: 0.9 });
+                const hub = new THREE.Mesh(hubGeo, hubMat);
+                fanGroup.add(hub);
+                
+                // Blades
+                const bladesGroup = new THREE.Group();
+                const bladeGeo = new THREE.BoxGeometry(0.15, 2.6, 0.2);
+                const bladeMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.7 });
+                for (let i = 0; i < 4; i++) {
+                    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                    blade.rotation.z = (i * Math.PI) / 2;
+                    bladesGroup.add(blade);
+                }
+                fanGroup.add(bladesGroup);
+                fanBlades.push(bladesGroup);
+                
+                scene.add(fanGroup);
+            });
+        }
+
+        // --- Environmental Control Callback Handlers ---
+        function updateEnvTemp(val) {
+            envTemperature = parseInt(val);
+            document.getElementById('val-temp').textContent = envTemperature + '°C';
+            
+            // Visual feedback: extreme temperatures change color indicator
+            const tempEl = document.getElementById('val-temp');
+            if (envTemperature > 30 || envTemperature < 18) {
+                tempEl.style.color = '#e74c3c'; // red (stress)
+            } else {
+                tempEl.style.color = '#4ecdc4'; // green (optimal)
+            }
+        }
+
+        function updateEnvHumidity(val) {
+            envHumidity = parseInt(val);
+            document.getElementById('val-humidity').textContent = envHumidity + '%';
+            
+            const humEl = document.getElementById('val-humidity');
+            if (envHumidity > 80 || envHumidity < 45) {
+                humEl.style.color = '#e74c3c';
+            } else {
+                humEl.style.color = '#4ecdc4';
+            }
+        }
+
+        function updateEnvEthylene(val) {
+            envEthylene = parseFloat(val);
+            document.getElementById('val-ethylene').textContent = envEthylene.toFixed(1) + ' ppm';
+            
+            const ethEl = document.getElementById('val-ethylene');
+            if (envEthylene > 4.0) {
+                ethEl.style.color = '#e74c3c'; // toxic
+            } else if (envEthylene > 2.0) {
+                ethEl.style.color = '#f39c12'; // ripening accelerator
+            } else {
+                ethEl.style.color = '#ff6b35';
+            }
+        }
+
+        function setVentilation(val, btn) {
+            envVentilation = val;
+            
+            // Toggle active button class
+            const buttons = document.querySelectorAll('#group-ventilation button');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setLighting(val, btn) {
+            envLighting = val;
+            
+            const buttons = document.querySelectorAll('#group-lighting button');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            updateLightingLevel();
+        }
+
+        function setDensity(val, btn) {
+            if (envDensity === val) return;
+            envDensity = val;
+            
+            const buttons = document.querySelectorAll('#group-density button');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Re-generate plants
+            buildPlantRows();
+        }
+
+        function updateLightingLevel() {
+            let ambientIntensity = 0.6;
+            let dirIntensity = 1.4;
+            
+            if (envLighting === 'Off') {
+                ambientIntensity = 0.1;
+                dirIntensity = 0.0;
+            } else if (envLighting === 'Low') {
+                ambientIntensity = 0.3;
+                dirIntensity = 0.5;
+            } else if (envLighting === 'Medium') {
+                ambientIntensity = 0.6;
+                dirIntensity = 1.4;
+            } else if (envLighting === 'High') {
+                ambientIntensity = 0.9;
+                dirIntensity = 2.0;
+            }
+            
+            if (ambientLight) ambientLight.intensity = ambientIntensity;
+            if (dirLight) dirLight.intensity = dirIntensity;
+        }
+
+        // --- Environmental Simulation Logic Over Time ---
+        function updateEnvironmentalSim(time) {
+            if (time - lastEnvTick < 1.5) return;
+            lastEnvTick = time;
+            
+            const isTempExtreme = envTemperature > 30 || envTemperature < 18;
+            const isHumidityExtreme = envHumidity > 80 || envHumidity < 45;
+            const isEthyleneHigh = envEthylene > 2.0;
+            const isEthyleneToxic = envEthylene > 4.0;
+            
+            plants.forEach(plant => {
+                const data = plant.userData;
+                
+                // Degrade health under extreme conditions
+                if (isTempExtreme || isHumidityExtreme || isEthyleneToxic) {
+                    data.health = Math.max(10, data.health - Math.floor(Math.random() * 2) - 1);
+                    data.diseaseProb = Math.min(99, data.diseaseProb + Math.floor(Math.random() * 3) + 1);
+                    
+                    // Turn leaves yellow-brownish
+                    if (data.health < 70) {
+                        data.leaves.forEach(leaf => {
+                            leaf.material.color.lerp(new THREE.Color(0x8a7b29), 0.1);
+                        });
+                    }
+                } 
+                // Optimal condition recovery
+                else if (envTemperature >= 21 && envTemperature <= 27 && envHumidity >= 55 && envHumidity <= 75 && envEthylene < 1.0) {
+                    if (data.health < 100) {
+                        data.health = Math.min(100, data.health + 1);
+                        data.diseaseProb = Math.max(1, data.diseaseProb - 1);
+                        
+                        // Turn leaves back to vibrant green
+                        if (data.health >= 75) {
+                            data.leaves.forEach(leaf => {
+                                const targetColor = new THREE.Color(0x3a7a33).lerp(new THREE.Color(0x5aaa33), Math.random());
+                                leaf.material.color.lerp(targetColor, 0.15);
+                            });
+                        }
+                    }
+                }
+                
+                // Ethylene accelerated growth
+                if (isEthyleneHigh && !isEthyleneToxic && Math.random() < 0.15) {
+                    let currentHeight = parseFloat(data.height);
+                    if (currentHeight < 4.5) {
+                        data.height = (currentHeight + 0.05).toFixed(1);
+                    }
+                }
+            });
+            
+            // Refresh detail panel if visible
+            if (selectedPlant) {
+                updatePlantPanel(selectedPlant);
+            }
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
